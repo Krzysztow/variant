@@ -37,6 +37,41 @@ using Transform = std::variant<Transform_no_change,
                                Transform_scale,
                                Transform_extra_vertex>;
 
+struct Transform_union
+{
+  union
+  {
+    Transform_no_change    no_change;
+    Transform_rigid_change rigid_change;
+    Transform_scale        scale;
+    Transform_extra_vertex extra_vertex;
+  };
+
+  enum class Type : unsigned char
+  {
+    no_change,
+    rigid_change,
+    scale,
+    extra_vertex
+  } type;
+};
+
+double calc_with_union(const Transform_union& transform)
+{
+  switch (transform.type)
+  {
+    case Transform_union::Type::no_change:
+      return 1;
+    case Transform_union::Type::rigid_change:
+      return transform.rigid_change.cosa;
+    case Transform_union::Type::scale:
+      return transform.scale.multiplier;
+    case Transform_union::Type::extra_vertex:
+      return transform.extra_vertex.vertex.x;
+  }
+  return 0;
+}
+
 double calc_with_if(const Transform& transform)
 {
   if (const auto& change = std::get_if<Transform_no_change>(&transform))
@@ -148,7 +183,8 @@ double calc_with_overloaded(const Transform& transform)
     [](const Transform_scale& transform)
     {
       return transform.multiplier;
-    },
+    }
+    ,
     [](const Transform_extra_vertex& transform)
     {
       return transform.vertex.x;
@@ -184,8 +220,75 @@ std::vector<Transform> create_test_data(uint64_t size)
   return data;
 }
 
+std::vector<Transform_union> create_union_test_data(uint64_t size)
+{
+  std::vector<Transform_union> data;
+  data.reserve(size*4);
+
+  for (uint64_t i = 0; i != size; ++i)
+  {
+    if (i % 4 != 0)
+    {
+      Transform_union transform;
+      transform.type = Transform_union::Type::no_change;
+      transform.no_change = Transform_no_change{};
+      data.push_back(transform);
+    }
+
+    const auto cosa = static_cast<double>(i)/size;
+    const auto sina = sqrt(1.0-cosa*cosa);
+    const auto x = 10*cosa;
+    const auto y = static_cast<double>(i);
+
+    if (i % 4 != 1)
+    {
+      Transform_union transform;
+      transform.type = Transform_union::Type::rigid_change;
+      transform.rigid_change = Transform_rigid_change{cosa, sina, {x,y}};
+      data.push_back(transform);
+    }
+
+    if (i % 4 != 2)
+    {
+      Transform_union transform;
+      transform.type = Transform_union::Type::scale;
+      transform.scale = Transform_scale{2*cosa};
+      data.push_back(transform);
+    }
+
+    if (i % 4 != 3)
+    {
+      Transform_union transform;
+      transform.type = Transform_union::Type::extra_vertex;
+      transform.extra_vertex = Transform_extra_vertex{i, {y,x}};
+      data.push_back(transform);
+    }
+  }
+
+  return data;
+}
+
 template <typename TTestFnc>
 double time_calc(TTestFnc fnc, size_t num_runs, const std::vector<Transform>& data)
+{
+  const auto start = std::chrono::system_clock::now();
+
+  double total = 0;
+
+  for (size_t run = 0; run != num_runs; ++run)
+    for (const auto& transform: data)
+      total += fnc(transform);
+
+  std::cout.precision(16);
+  std::cout << total << "\t";
+
+  const auto finish = std::chrono::system_clock::now();
+  const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
+  return duration/1000.0;
+}
+
+template <typename TTestFnc>
+double time_union_calc(TTestFnc fnc, size_t num_runs, const std::vector<Transform_union>& data)
 {
   const auto start = std::chrono::system_clock::now();
 
@@ -209,12 +312,14 @@ int main()
 
   constexpr uint64_t data_size = 10000;
   const auto data = create_test_data(data_size);
+  const auto union_data = create_union_test_data(data_size);
 
-  constexpr size_t num_runs = 100000;
+  constexpr size_t num_runs = 200000;
 
   std::cout << "if        :\t" << time_calc(calc_with_if,         num_runs, data) << "s\n";
   std::cout << "switch    :\t" << time_calc(calc_with_switch,     num_runs, data) << "s\n";
   std::cout << "switch_if :\t" << time_calc(calc_with_switch_if,  num_runs, data) << "s\n";
   std::cout << "visit     :\t" << time_calc(calc_with_visit,      num_runs, data) << "s\n";
   std::cout << "overloaded:\t" << time_calc(calc_with_overloaded, num_runs, data) << "s\n";
+  std::cout << "union     :\t" << time_union_calc(calc_with_union, num_runs, union_data) << "s\n";
 }

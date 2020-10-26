@@ -18,7 +18,7 @@ fn calc_with_match(transform: &Transform) -> f64
     Transform::NoChange                            => 1.0,
     Transform::RigidChange{cosa,sina:_,offset:_}   => *cosa,
     Transform::Scale{multiplier}                   => *multiplier,
-    Transform::ExtraVertex{insertion_idx:_,vertex} => vertex.x
+    Transform::ExtraVertex{insertion_idx:_,vertex} => vertex.x,
   }
 }
 
@@ -72,7 +72,7 @@ fn main() {
     let data_size:u64 = 10000;
     let data = create_test_data(data_size);
 
-    let num_runs = 100000;
+    let num_runs = 200000;
 
     println!("match: {:?}", time_calc(num_runs, &data));
 }

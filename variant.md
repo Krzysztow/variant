@@ -62,7 +62,8 @@ Time the different approaches.
 - difficult to create variant types scoped to the variant
 - various library supported syntaxes verbose and intricate
 - combining `switch` and `get_if` increases the decision-making work
-- good to see 'offical' techniques before well
+- good to see 'official' techniques before well
+- switch and mechanisms detect missing cases
 
 ---
 
@@ -85,12 +86,15 @@ Time the different approaches.
 - easy to create variant types scoped to the variant
   - but more difficult to compose from existing types (need to wrap)
 - language supported switch trivial to implement
+- more helpful error messages
 
 ---
 
 # Next steps
 
-- Constraint based types and programming
-- Rust type traits
+- godbolt c++ vs rust
+- direct invoke (function?)
+- michael park faster variant
+- alternative c++ compiler
 
 Any ideas/questions: richard@shepherd.ws
