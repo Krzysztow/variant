@@ -268,8 +268,8 @@ std::vector<Transform_union> create_union_test_data(uint64_t size)
   return data;
 }
 
-template <typename TTestFnc>
-double time_calc(TTestFnc fnc, size_t num_runs, const std::vector<Transform>& data)
+template <typename TTestFnc, typename TTestFncArg>
+double time_calc(TTestFnc fnc, size_t num_runs, const std::vector<TTestFncArg>& data)
 {
   const auto start = std::chrono::system_clock::now();
 
@@ -279,30 +279,12 @@ double time_calc(TTestFnc fnc, size_t num_runs, const std::vector<Transform>& da
     for (const auto& transform: data)
       total += fnc(transform);
 
-  std::cout.precision(16);
-  std::cout << total << "\t";
-
   const auto finish = std::chrono::system_clock::now();
   const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
-  return duration/1000.0;
-}
-
-template <typename TTestFnc>
-double time_union_calc(TTestFnc fnc, size_t num_runs, const std::vector<Transform_union>& data)
-{
-  const auto start = std::chrono::system_clock::now();
-
-  double total = 0;
-
-  for (size_t run = 0; run != num_runs; ++run)
-    for (const auto& transform: data)
-      total += fnc(transform);
 
   std::cout.precision(16);
   std::cout << total << "\t";
 
-  const auto finish = std::chrono::system_clock::now();
-  const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
   return duration/1000.0;
 }
 
@@ -321,5 +303,5 @@ int main()
   std::cout << "switch_if :\t" << time_calc(calc_with_switch_if,  num_runs, data) << "s\n";
   std::cout << "visit     :\t" << time_calc(calc_with_visit,      num_runs, data) << "s\n";
   std::cout << "overloaded:\t" << time_calc(calc_with_overloaded, num_runs, data) << "s\n";
-  std::cout << "union     :\t" << time_union_calc(calc_with_union, num_runs, union_data) << "s\n";
+  std::cout << "union     :\t" << time_calc(calc_with_union,      num_runs, union_data) << "s\n";
 }
