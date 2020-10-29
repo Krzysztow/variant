@@ -59,8 +59,8 @@ struct Transform_union
 };
 
 auto transform_no_change() {
-    return [] {
-        return 1.0;
+    return []() -> double {
+        return 1;
     };
 }
 
@@ -210,19 +210,23 @@ double calc_with_overloaded(const Transform& transform)
   {
     [](const Transform_no_change& transform)
     {
+      std::cout << "no change ";
       return 1.0;
     },
     [](const Transform_rigid_change& transform)
     {
+      std::cout << "rigid " << transform.cosa << " ";
       return transform.cosa;
     },
     [](const Transform_scale& transform)
     {
+      std::cout << "scale " << transform.multiplier << " ";
       return transform.multiplier;
     }
     ,
     [](const Transform_extra_vertex& transform)
     {
+      std::cout << "extra " << transform.vertex.x << " ";
       return transform.vertex.x;
     }
   }, transform);
@@ -234,6 +238,7 @@ double calc_with_do_overloaded(const DoTransform& transform)
   {
     [](const auto& do_transform)
     {
+      std::cout << "do_transform " << do_transform() << " ";
       return do_transform();
     }
   }, transform);
@@ -359,8 +364,10 @@ double time_calc(TTestFnc fnc, size_t num_runs, const std::vector<TTestFncArg>& 
   double total = 0;
 
   for (size_t run = 0; run != num_runs; ++run)
-    for (const auto& transform: data)
+    for (const auto& transform: data) {
       total += fnc(transform);
+      std::cout << total << " "; 
+    }
 
   const auto finish = std::chrono::system_clock::now();
   const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count();
@@ -375,12 +382,12 @@ int main()
 {
   std::cout << "C++ enum calc\n";
 
-  constexpr uint64_t data_size = 1000;
+  constexpr uint64_t data_size = 4;
   const auto data = create_test_data(data_size);
   const auto union_data = create_union_test_data(data_size);
   const auto do_data = create_do_test_data(data_size);
 
-  constexpr size_t num_runs = 200000;
+  constexpr size_t num_runs = 1;
 
   std::cout << "if        :\t" << time_calc(calc_with_if,         num_runs, data) << "s\n";
   std::cout << "switch    :\t" << time_calc(calc_with_switch,     num_runs, data) << "s\n";
