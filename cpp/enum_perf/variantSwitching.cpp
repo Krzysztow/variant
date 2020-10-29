@@ -1,5 +1,6 @@
 #include <chrono>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <variant>
 #include <vector>
@@ -32,6 +33,7 @@ struct Transform_extra_vertex
   Point_2D vertex;
 };
 
+
 using Transform = std::variant<Transform_no_change,
                                Transform_rigid_change,
                                Transform_scale,
@@ -55,6 +57,40 @@ struct Transform_union
     extra_vertex
   } type;
 };
+
+auto transform_no_change() {
+    return [] {
+        return 1.0;
+    };
+}
+
+auto transform_rigid_change(double cosa, double sina, const Point_2D& offset) {
+    return [=] {
+        return cosa;
+    };
+}
+
+auto transform_scale(double multiplier) {
+    return [=] {
+        return multiplier;
+    };
+}
+
+auto transform_extra_vertex(uint64_t insertion_idx, const Point_2D& vertex) {
+    return [=] {
+        return vertex.x;
+    };
+}
+
+using DoTransform_no_change = decltype(transform_no_change());
+using DoTransform_rigid_change = decltype(transform_rigid_change({},{},{}));
+using DoTransform_scale = decltype(transform_scale({}));
+using DoTransform_extra_vertex = decltype(transform_extra_vertex({},{}));
+
+using DoTransform = std::variant<DoTransform_no_change,
+                               DoTransform_rigid_change,
+                               DoTransform_scale,
+                               DoTransform_extra_vertex>;
 
 double calc_with_union(const Transform_union& transform)
 {
@@ -192,6 +228,17 @@ double calc_with_overloaded(const Transform& transform)
   }, transform);
 }
 
+double calc_with_do_overloaded(const DoTransform& transform)
+{
+  return std::visit(overloaded 
+  {
+    [](const auto& do_transform)
+    {
+      return do_transform();
+    }
+  }, transform);
+}
+
 std::vector<Transform> create_test_data(uint64_t size)
 {
   std::vector<Transform> data;
@@ -268,6 +315,42 @@ std::vector<Transform_union> create_union_test_data(uint64_t size)
   return data;
 }
 
+std::vector<DoTransform> create_do_test_data(uint64_t size)
+{
+  std::vector<DoTransform> data;
+  data.reserve(size*4);
+
+  for (uint64_t i = 0; i != size; ++i)
+  {
+    if (i % 4 != 0)
+    {
+      data.push_back(transform_no_change());
+    }
+
+    const auto cosa = static_cast<double>(i)/size;
+    const auto sina = sqrt(1.0-cosa*cosa);
+    const auto x = 10*cosa;
+    const auto y = static_cast<double>(i);
+
+    if (i % 4 != 1)
+    {
+      data.push_back(transform_rigid_change(cosa, sina, {x, y}));
+    }
+
+    if (i % 4 != 2)
+    {
+      data.push_back(transform_scale(2*cosa));
+    }
+
+    if (i % 4 != 3)
+    {
+      data.push_back(transform_extra_vertex(i, {x, y}));
+    }
+  }
+
+  return data;
+}
+
 template <typename TTestFnc, typename TTestFncArg>
 double time_calc(TTestFnc fnc, size_t num_runs, const std::vector<TTestFncArg>& data)
 {
@@ -292,9 +375,10 @@ int main()
 {
   std::cout << "C++ enum calc\n";
 
-  constexpr uint64_t data_size = 10000;
+  constexpr uint64_t data_size = 1000;
   const auto data = create_test_data(data_size);
   const auto union_data = create_union_test_data(data_size);
+  const auto do_data = create_do_test_data(data_size);
 
   constexpr size_t num_runs = 200000;
 
@@ -304,4 +388,5 @@ int main()
   std::cout << "visit     :\t" << time_calc(calc_with_visit,      num_runs, data) << "s\n";
   std::cout << "overloaded:\t" << time_calc(calc_with_overloaded, num_runs, data) << "s\n";
   std::cout << "union     :\t" << time_calc(calc_with_union,      num_runs, union_data) << "s\n";
+  std::cout << "lambdas   :\t" << time_calc(calc_with_do_overloaded,num_runs, do_data) << "s\n";
 }
